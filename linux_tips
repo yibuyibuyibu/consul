@@ -1,0 +1,4 @@
+
+linux tips 
+grep '^[^;]' /etc/php.ini                                 # 排除行首匹配符有';'号的行。
+echo "alias grep='grep --color=auto'" >> /root/.bashrc    # 设置 grep 命令抓取颜色显示。
