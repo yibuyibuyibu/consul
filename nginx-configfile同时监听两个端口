@@ -1,0 +1,46 @@
+nginx.default.conf 
+    server {
+        listen 80 default_server;
+        server_name _;
+        return 403;
+    }
+
+
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    return 403;
+    ssl_certificate      ca/vikduo/vikduo.com.pem;
+    ssl_certificate_key  ca/vikduo/vikduo.com.key;
+} 
+
+--------------------------------------------------
+nginx.conf server段 
+server {
+        listen 80;
+        listen 443 ssl;
+        server_name     ggt.vikduo.com;
+        ssl_certificate      ca/vikduo/vikduo.com.pem;
+        ssl_certificate_key  ca/vikduo/vikduo.com.key;
+        ssl_session_timeout  5m;
+        ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers  HIGH:!RC4:!MD5:!aNULL:!eNULL:!NULL:!DH:!EDH:!EXP:+MEDIUM;
+        ssl_prefer_server_ciphers   on;
+        root    /data2/www/ggt/app/api/web;
+        error_log /data2/webserver/nginx/logs/ggt.vikduo.com-error.log;
+        access_log /data2/webserver/nginx/logs/ggt.vikduo.com_access.log main;
+
+        location / {
+                index index.html index.php;
+                try_files $uri $uri/ /index.php$is_args$args;
+        }
+
+        location ~ \.php$ {
+                fastcgi_pass 127.0.0.1:9001;
+                fastcgi_index index.php;
+                fastcgi_param  SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                include       fastcgi_params;
+        }
+
+}
+
