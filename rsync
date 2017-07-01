@@ -1,0 +1,105 @@
+在centos7安装rsync实现定时备份 
+
+# cat /etc/redhat-release 
+CentOS Linux release 7.3.1611 (Core) 
+192.168.183.132    --a:服务端
+192.168.183.133    --b:客户端
+rsync:rsync-3.1.2
+
+分别在a和b机器安装rsync
+# wget https://download.samba.org/pub/rsync/rsync-3.1.2.tar.gz 
+# tar zxvf rsync-3.1.2.tar.gz
+# cd rsync-3.1.2.tar.gz 
+# ./configure && make && make install 
+
+# vim /etc/sysconfig/selinux
+SELINUX=disabled
+
+
+a上开启rsync防火墙端口
+# firewall-cmd --zone=public --add-port=873/tcp --permanent 
+# firewall-cmd --relaod
+
+cat > /etc/rsyncd.conf << EOF
+# /etc/rsyncd: configuration file for rsync daemon mode
+# See rsyncd.conf man page for more options.
+# configuration example:
+
+uid = nobody
+gid = nobody
+use chroot = no
+max connections = 10     
+
+# if set 'strict modes = yes' is only for root
+strict modes = no
+pid file = /var/run/rsyncd.pid
+lock file = /var/run/rsync.lock
+log file = /var/log/rsyncd.log
+
+[yibu]
+path = /root/sh
+comment = /root/sh
+ignore errors
+read only = no 
+write only = no 
+hosts allow = * 
+# hosts deny = 
+list = false 
+uid = root
+gid = root
+auth users = backup
+secrets file = /etc/server.pass
+EOF
+
+# cat /etc/server.pass 
+backup:abcdefg
+# chmod 600 /etc/server.pass
+# /usr/local/bin/rsync --daemon
+
+#  ps aux | grep rsync | grep -v grep 
+root       6109  0.0  0.0 108380   612 ?        Ss   17:17   0:00 /usr/local/bin/rsync --daemon
+
+# useradd backup
+# passwd backup
+
+a服务器测试查看文件夹末尾有无/，传送会包含和不包含文件夹本身。
+# rsync -av sh test/
+# rsync -av sh/ test/
+
+# rsync -av sh 192.168.183.133:/root/sh
+# rsync -av sh/ 192.168.183.133:/root/sh
+# rsync -a  192.168.183.133:/root/sh
+
+
+b服务器:
+#  cat /etc/server.pass  
+abcdefg
+# chmod 600 /etc/server.pass
+
+# /usr/local/bin/rsync -vzrtopg --delete --progress --exclude "*access*" --exclude "debug*" backup@192.168.183.132::yibu /root/sh --password-file=/etc/server.pass
+# systemctl status crond 
+
+# crontab -e 
+15 03 * * * /usr/local/bin/rsync -vzrtopg --delete --progress --exclude "*access*" --exclude "debug*" backup@192.168.183.132::yibu /root/sh --password-file=/etc/server.pass
+# crontab -l 
+
+b恢复数据到a
+# rsync -av sh/ 192.168.183.132:/root/sh
+
+附录： 
+[yibu] 表示模块开始。
+服务端普通用户没有配置权限用主动模式rsync
+
+rsync部分参数：
+-av
+-vzrtopg 
+-a, --archive    归档模式，表示以递归方式传输文件，并保持所有文件属性，等于-rlptgoD。
+
+-v, --verbose    详细模式输出。
+
+-z, --compress   对备份的文件在传输时进行压缩处理。
+-r, --recursive  对子目录以递归模式处理。
+-t, --times   保持文件时间信息。
+-p, --perms   保持文件权限。 
+-o, --owner   保持文件属主信息。
+-g, --group   保持文件属组信息。
